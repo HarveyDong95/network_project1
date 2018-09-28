@@ -28,7 +28,7 @@
 #include <arpa/inet.h>
 #include "../include/global.h"
 #include "../include/logger.h"
-#include "./logger.c"
+
 
 #include <unistd.h>
 #include <netdb.h>
@@ -48,7 +48,11 @@ void distinguish_command(char cmd[128]);
 #define TRUE 1
 #define CMD_SIZE 100
 #define BUFFER_SIZE 256
-
+#define DNS_SERVER "8.8.8.8"
+#define DNS_SERVER_PORT 53
+#define TCP 1
+#define UDP 2
+int port;
 //client
 int client(char argv[20])
 {
@@ -60,7 +64,7 @@ int client(char argv[20])
 //server
 int server(int argv)
 {
-	int port, server_socket, head_socket, selret, sock_index, fdaccept=0, caddr_len;
+	int  server_socket, head_socket, selret, sock_index, fdaccept=0, caddr_len;
 	struct sockaddr_in server_addr, client_addr;
 	fd_set master_list, watch_list;
 	//socket
@@ -127,7 +131,7 @@ int server(int argv)
 					//Process PA1 commands here ...
 					//Use a function to distinguish command and run them
 					distinguish_command(cmd);
-
+					//printf("ip is %s\n",get_host_ip_addr());
 					free(cmd);
 									}
 									/* Check if new client is requesting connection */
@@ -182,33 +186,33 @@ int server(int argv)
 
 int main(int argc, char **argv)
 {
-	int portnum;
+	/*Init. Logger*/
+	cse4589_init_log(argv[2]);
+
+	/*Clear LOGFILE*/
+	fclose(fopen(LOGFILE, "w"));
+
 	if(argc != 3) {
 		printf("Usage:%s [server/client] [port]\n",argv[0]);
 		exit(1);
 	}
 	//Judgh the second para is server or client
 	if((strcmp(argv[1],"server")==0)||(strcmp(argv[1],"client")==0)){
-		portnum = atoi(argv[2]);
+		port = atoi(argv[2]);
 		//jump into server or client
 		if((strcmp(argv[1],"server")==0)){
 			//jump into server
-			server(portnum);
+			server(port);
 		}
 		else{
 			//jump into client
-			client(portnum);
+			client(port);
 		}
 	}
 	else{
 		printf("Usage2:%s [server/client] [port]\n",argv[0]);
 		exit(1);
 	}
-	/*Init. Logger*/
-	cse4589_init_log(argv[2]);
-
-	/*Clear LOGFILE*/
-	fclose(fopen(LOGFILE, "w"));
 
 	/*Start Here*/
 
@@ -216,35 +220,62 @@ int main(int argc, char **argv)
 }
 
 
-char* get_host_ip_addr(){
-			char ip_addr[128];
-			gethostname(ip_addr, sizeof(ip_addr));
-			return ip_addr;
-}
 
+char * get_host_ip_addr(){
+	int sockfd;
+	struct sockaddr_in myAddress;
+	struct sockaddr_in serverAddress;
+	//Create UDP Socket
+	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+	if(sockfd < 0){
+		perror("Failed to create socket");
+	}
+
+	bzero(&serverAddress, sizeof(serverAddress));
+	serverAddress.sin_family = AF_INET;
+	inet_pton(AF_INET, DNS_SERVER, &serverAddress.sin_addr.s_addr);
+	//serverAddress.sin_addr.s_addr = htonl(DNS_SERVER);
+	serverAddress.sin_port = htons(DNS_SERVER_PORT);
+
+	if(connect(sockfd, (struct sockaddr*) &serverAddress, sizeof(serverAddress))<0){
+		perror("Failed to connect to DNS_SERVER");
+	}
+
+	socklen_t l = INET_ADDRSTRLEN;
+
+	getsockname(sockfd, (struct sockaddr*)&myAddress, &l);
+	char *ip;
+	ip = inet_ntoa(myAddress.sin_addr);
+	//printf("IP....%s /n",ip);
+	close(sockfd);
+	return ip;
+}
 
 
 void distinguish_command(char cmd[20])
 {
-	char ip_addr[128];
+	char ip[128];
 	char your_ubit_name[20];
+	int l;
 	strcpy(your_ubit_name,"haoruido");
-	if(strncmp(cmd,"AUTHOR",6) == 0){
-		printf("I, %s, have read and understood the course academic integrity policy.\n", your_ubit_name);
+	l = strlen(cmd);
+	if(cmd[l-1] == '\n'){
+			cmd[l-1] = '\0';
 	}
-	else if (strncmp(cmd,"IP",2) == 0) {
-		if(get_host_ip_addr() > 0) {
-			cse4589_print_and_log("[%s:SUCCESS]\n", cmd);
-			cse4589_print_and_log("IP:%s\n", ip_addr);
-			cse4589_print_and_log("[%s:END]\n", cmd);
-		}
-		else {
-			cse4589_print_and_log("[%s:ERROR]\n", cmd);
-			cse4589_print_and_log("[%s:END]\n", cmd);
-		}
+	if(!strncmp(cmd,"AUTHOR",6)){
+		cse4589_print_and_log("[%s:SUCCESS]\n", cmd);
+		printf("I, %s, have read and understood the course academic integrity policy.\n", your_ubit_name);\
+		cse4589_print_and_log("[%s:END]\n", cmd);
 	}
-	else{
-		exit(0);
+	else if(!strncmp(cmd,"IP",2)) {
+		cse4589_print_and_log("[%s:SUCCESS]\n", cmd);
+		cse4589_print_and_log("IP:%s\n", get_host_ip_addr());
+		cse4589_print_and_log("[%s:END]\n", cmd);
+	}
+	else if(!strncmp(cmd,"PORT",4)){
+		cse4589_print_and_log("[%s:SUCCESS]\n", cmd);
+		cse4589_print_and_log("port:%d\n", port);
+		cse4589_print_and_log("[%s:END]\n", cmd);
 	}
 
 }
