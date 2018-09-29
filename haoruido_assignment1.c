@@ -43,6 +43,7 @@
 //init function
 void distinguish_command(char cmd[128]);
 
+//define
 #define BACKLOG 5
 #define STDIN 0
 #define TRUE 1
@@ -52,16 +53,18 @@ void distinguish_command(char cmd[128]);
 #define DNS_SERVER_PORT 53
 #define TCP 1
 #define UDP 2
+
+//param
 int port;
-//client
+
+//client!!!!
 int client(char argv[20])
 {
 	printf("this is client\n");
 	return 0;
 }
 
-
-//server
+//server!!!!!
 int server(int argv)
 {
 	int  server_socket, head_socket, selret, sock_index, fdaccept=0, caddr_len;
@@ -220,7 +223,7 @@ int main(int argc, char **argv)
 }
 
 
-
+//get ip address
 char * get_host_ip_addr(){
 	int sockfd;
 	struct sockaddr_in myAddress;
@@ -251,7 +254,7 @@ char * get_host_ip_addr(){
 	return ip;
 }
 
-
+//this is a function to distinguish cmd and run them
 void distinguish_command(char cmd[20])
 {
 	char ip[128];
