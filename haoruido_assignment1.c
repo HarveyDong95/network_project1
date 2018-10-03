@@ -42,7 +42,10 @@
  */
 //init function
 void distinguish_command(char cmd[128]);
-
+int connect_to_host(char *server_ip, int server_port, int clientport);
+void client_command(char cmd[20]);
+void sortClient();
+void addtoList(int sock, char* ip, int port, char* hostname);
 //define
 #define BACKLOG 5
 #define STDIN 0
@@ -53,16 +56,104 @@ void distinguish_command(char cmd[128]);
 #define DNS_SERVER_PORT 53
 #define TCP 1
 #define UDP 2
-
+#define MSG_SIZE 256
 //param
 int port;
+int clientport;
+int clientNum;
+struct Node{
+	//use getnameinfo to get hostname
+	char * ip;
+	int port;
+	char hostname[128];
+	int sock;
+	int status;
+	int messageCount;
+};
+struct Node clientList[5];
+struct addrinfo *myaddress;
 
 //client!!!!
 int client(char argv[20])
 {
-	printf("this is client\n");
-	return 0;
+	/*int  client_socket, head_socket, selret, sock_index, fdaccept=0, caddr_len;
+	struct sockaddr_in client_addr;
+	fd_set master_list, watch_list;
+	int fdsocket;
+	char cmd[128];
+
+	while(TRUE){
+
+
+					memset(cmd, '\0', CMD_SIZE);
+					if(fgets(cmd, CMD_SIZE-1, stdin) == NULL) //Mind the newline character that will be written to cmd
+						exit(-1);
+
+					printf("\nI got: %s\n", cmd);
+
+					distinguish_command(cmd);
+					client_command(cmd);
+					//printf("ip is %s\n",get_host_ip_addr());
+					free(cmd);
+				}*/
+
+	int server1;
+	//server = connect_to_host(argv[1], atoi(argv[2]));
+
+	while(TRUE){
+						printf("\n[PA1-Client@CSE489/589]$ ");
+						fflush(stdout);
+
+						char *msg = (char*) malloc(sizeof(char)*MSG_SIZE);
+				    	memset(msg, '\0', MSG_SIZE);
+						if(fgets(msg, MSG_SIZE-1, stdin) == NULL) //Mind the newline character that will be written to msg
+							exit(-1);
+
+						printf("I got: %s(size:%d chars)", msg, strlen(msg));
+						distinguish_command(msg);
+						client_command(msg);
+
+						fflush(stdout);
+
+						/* Initialize buffer to receieve response */
+				        char *buffer = (char*) malloc(sizeof(char)*BUFFER_SIZE);
+				        memset(buffer, '\0', BUFFER_SIZE);
+
+						if(recv(server1, buffer, BUFFER_SIZE, 0) >= 0){
+							printf("Server responded: %s", buffer);
+							fflush(stdout);
+						}
+					}
+					return 0;
 }
+
+int connect_to_host(char *server_ip, int server_port, int clientport)
+{
+    int fdsocket, len;
+    struct sockaddr_in remote_server_addr,client;
+
+    fdsocket = socket(AF_INET, SOCK_STREAM, 0);
+    if(fdsocket < 0)
+       perror("Failed to create socket");
+		client.sin_family = AF_INET;
+		client.sin_addr.s_addr = inet_addr("127.0.0.1");
+		client.sin_port = htons(clientport);
+
+		if(bind(fdsocket,(struct sockaddr *)&client, sizeof(client)) < 0)
+				perror("Bind failed!");
+
+    bzero(&remote_server_addr, sizeof(remote_server_addr));
+    remote_server_addr.sin_family = AF_INET;
+    inet_pton(AF_INET, server_ip, &remote_server_addr.sin_addr);
+    remote_server_addr.sin_port = htons(server_port);
+
+    if(connect(fdsocket, (struct sockaddr*)&remote_server_addr, sizeof(remote_server_addr)) < 0)
+        perror("Connect failed");
+
+    return fdsocket;
+}
+
+
 
 //server!!!!!
 int server(int argv)
@@ -194,7 +285,6 @@ int main(int argc, char **argv)
 
 	/*Clear LOGFILE*/
 	fclose(fopen(LOGFILE, "w"));
-
 	if(argc != 3) {
 		printf("Usage:%s [server/client] [port]\n",argv[0]);
 		exit(1);
@@ -202,6 +292,7 @@ int main(int argc, char **argv)
 	//Judgh the second para is server or client
 	if((strcmp(argv[1],"server")==0)||(strcmp(argv[1],"client")==0)){
 		port = atoi(argv[2]);
+		clientport = atoi(argv[2]);
 		//jump into server or client
 		if((strcmp(argv[1],"server")==0)){
 			//jump into server
@@ -282,3 +373,67 @@ void distinguish_command(char cmd[20])
 	}
 
 }
+
+void sortClient(){
+	struct Node clientnode;
+	int i = 1;
+	for(i; i < clientNum; i++){
+		int j = 0;
+		while(j < i){
+			if(clientList[i].port < clientList[j].port){
+				clientnode = clientList[i];
+				clientList[i] = clientList[j];
+				clientList[j] = clientnode;
+			}
+			j++;
+		}
+	}
+}
+
+void addtoList(int sock, char* ip, int port, char* hostname){
+	clientList[clientNum].sock = sock;
+	strcpy(clientList[clientNum].ip, ip);
+	clientList[clientNum].port = port;
+	clientList[clientNum].status = 1;
+	if(hostname == NULL){
+		strcpy(clientList[clientNum].hostname, "host");
+	}else{
+		strcpy(clientList[clientNum].hostname, hostname);
+	}
+	clientList[clientNum].messageCount = 0;
+	clientNum++;
+	sortClient();
+}
+
+void client_command(char cmd[20]){
+	int fdsocket;
+
+	if(strstr(cmd,"LOGIN")){
+		int count = 0;
+		char *d_array[10];
+		char *arg = strtok(cmd," ");
+		while(arg){
+			d_array[count] = arg;
+			count++;
+			arg = strtok(NULL," ");
+		}
+
+		char * serverIPaddr;
+		serverIPaddr = d_array[1];
+		int serverport = atoi(d_array[2]);
+
+		fdsocket = connect_to_host(serverIPaddr, serverport, clientport);
+		printf("connect success\n");
+	}
+	//printf("this is client_command\n");
+}
+
+/*void printList(){
+	while(node!=NULL){
+		int count = 1;
+		for(count; count<5; count++){
+
+			cse4589cse4589_print_and_log("%-5d%-35s%-20s%-8d\n", count, node->hostname, node->ip, node->port);
+		}
+
+	}*/
