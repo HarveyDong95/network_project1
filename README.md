@@ -5,3 +5,4 @@ text_socket_app
 
 https://github.com/pbarsale/Text-Chat-Application/blob/master/src/pbarsale_assignment1.c
 https://github.com/shreytdoshi/TextChatApplication/blob/master/src/linkedlist.c
+https://github.com/priya2193/Text-Chat-Application/blob/master/Text%20Chat%20Application.c
