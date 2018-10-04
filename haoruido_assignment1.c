@@ -76,26 +76,6 @@ struct addrinfo *myaddress;
 //client!!!!
 int client(char argv[20])
 {
-	/*int  client_socket, head_socket, selret, sock_index, fdaccept=0, caddr_len;
-	struct sockaddr_in client_addr;
-	fd_set master_list, watch_list;
-	int fdsocket;
-	char cmd[128];
-
-	while(TRUE){
-
-
-					memset(cmd, '\0', CMD_SIZE);
-					if(fgets(cmd, CMD_SIZE-1, stdin) == NULL) //Mind the newline character that will be written to cmd
-						exit(-1);
-
-					printf("\nI got: %s\n", cmd);
-
-					distinguish_command(cmd);
-					client_command(cmd);
-					//printf("ip is %s\n",get_host_ip_addr());
-					free(cmd);
-				}*/
 
 	int server1;
 	//server = connect_to_host(argv[1], atoi(argv[2]));
@@ -109,7 +89,7 @@ int client(char argv[20])
 						if(fgets(msg, MSG_SIZE-1, stdin) == NULL) //Mind the newline character that will be written to msg
 							exit(-1);
 
-						printf("I got: %s(size:%d chars)", msg, strlen(msg));
+						printf("I got: %s\n", msg);
 						distinguish_command(msg);
 						client_command(msg);
 
@@ -236,7 +216,8 @@ int server(int argv)
 													perror("Accept failed.");
 
 					printf("\nRemote Host connected!\n");
-
+					//addtoList();
+						
 											/* Add to watched socket list */
 											FD_SET(fdaccept, &master_list);
 											if(fdaccept > head_socket) head_socket = fdaccept;
@@ -286,15 +267,15 @@ int main(int argc, char **argv)
 	/*Clear LOGFILE*/
 	fclose(fopen(LOGFILE, "w"));
 	if(argc != 3) {
-		printf("Usage:%s [server/client] [port]\n",argv[0]);
+		printf("Usage:%s [s/c] [port]\n",argv[0]);
 		exit(1);
 	}
 	//Judgh the second para is server or client
-	if((strcmp(argv[1],"server")==0)||(strcmp(argv[1],"client")==0)){
+	if((strcmp(argv[1],"s")==0)||(strcmp(argv[1],"c")==0)){
 		port = atoi(argv[2]);
 		clientport = atoi(argv[2]);
 		//jump into server or client
-		if((strcmp(argv[1],"server")==0)){
+		if((strcmp(argv[1],"s")==0)){
 			//jump into server
 			server(port);
 		}
@@ -304,7 +285,7 @@ int main(int argc, char **argv)
 		}
 	}
 	else{
-		printf("Usage2:%s [server/client] [port]\n",argv[0]);
+		printf("Usage2:%s [s/c] [port]\n",argv[0]);
 		exit(1);
 	}
 
@@ -358,7 +339,7 @@ void distinguish_command(char cmd[20])
 	}
 	if(!strncmp(cmd,"AUTHOR",6)){
 		cse4589_print_and_log("[%s:SUCCESS]\n", cmd);
-		printf("I, %s, have read and understood the course academic integrity policy.\n", your_ubit_name);\
+		cse4589_print_and_log("I, %s, have read and understood the course academic integrity policy.\n", your_ubit_name);
 		cse4589_print_and_log("[%s:END]\n", cmd);
 	}
 	else if(!strncmp(cmd,"IP",2)) {
@@ -368,7 +349,7 @@ void distinguish_command(char cmd[20])
 	}
 	else if(!strncmp(cmd,"PORT",4)){
 		cse4589_print_and_log("[%s:SUCCESS]\n", cmd);
-		cse4589_print_and_log("port:%d\n", port);
+		cse4589_print_and_log("PORT:%d\n", port);
 		cse4589_print_and_log("[%s:END]\n", cmd);
 	}
 
