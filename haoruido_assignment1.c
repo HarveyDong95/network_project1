@@ -483,7 +483,7 @@ void distinguish_command(char cmd[20])
 	char ip[128];
 	char your_ubit_name[20];
 	int l;
-	strcpy(your_ubit_name,"shiyangw");
+	strcpy(your_ubit_name,"haoruido");
 	l = strlen(cmd);
 	if(cmd[l-1] == '\n'){
 			cmd[l-1] = '\0';
@@ -515,7 +515,7 @@ void distinguish_command_client(char cmd[20], int client_socket)
 	char ip[128];
 	char your_ubit_name[20];
 	int l;
-	strcpy(your_ubit_name,"shiyangw");
+	strcpy(your_ubit_name,"haoruido");
 	l = strlen(cmd);
 	if(cmd[l-1] == '\n'){
 			cmd[l-1] = '\0';
