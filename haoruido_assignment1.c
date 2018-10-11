@@ -50,6 +50,7 @@ int sendall(int socket_fd, char *buf, int *len);
 void create_listdata(char *listdata_array);
 void displayinlist();
 void distinguish_command_client(char cmd[20], int client_socket);
+void displayinlist_client();
 //define
 #define BACKLOG 5
 #define STDIN 0
@@ -87,8 +88,10 @@ struct addrinfo *myaddress;
 int client(char argv[20])
 {
 
-	int client_socket, head_socket, selret, sock_index, fdaccept=0, caddr_len,log_status, clientNum;
+	int client_socket, head_socket, selret, sock_index, fdaccept=0, caddr_len,log_status, clientNum,temp_port;
 	char *cmd;
+	char *temp[128];
+	int loop1=1,loop2=0; //to loop the buffer
 	char *token;
 	struct sockaddr_in server_addr, client_addr;
 	fd_set master_list, watch_list;
@@ -150,7 +153,10 @@ int client(char argv[20])
 
 		                client_socket = connect_to_host(serverIPaddr, serverport, clientport);
 		                //printf("connect success\n");
-						cse4589_print_and_log("[%s:SUCCESS]\n", "LOGIN");
+						if(client_socket != 0)
+							cse4589_print_and_log("[%s:SUCCESS]\n", "LOGIN");
+						else
+							cse4589_print_and_log("[%s:SUCCESS\n]","LOGIN");
 		                char serverport_str[5];
 		                char clientport_str[5];
 		                sprintf(serverport_str,"%d",serverport);
@@ -200,22 +206,41 @@ int client(char argv[20])
 				        memset(buffer, '\0', BUFFER_SIZE);
 
 						if(recv(client_socket, buffer, BUFFER_SIZE, 0) >= 0){
-							token = strtok(buffer," ");
-							clientList[clientNum].port = port;
-							//while(token != NULL){
-								//printf("%s\n",token);
+							token = strtok(buffer,"\n");
+							while( token != NULL ){
+								temp[clientNum] = token;
+								//printf("temp[%d] = %s\n",clientNum,temp[clientNum]);
+								clientNum++;
+								token = strtok(NULL, "\n");
+							}
+							//clientList[clientNum].port = port;
+							printf("clientNum is %d\n",clientNum);
+							for(loop1;loop1<clientNum;loop1++){
+								token = strtok(temp[loop1]," ");
 								token = strtok(NULL," ");
-								//printf("%s\n",token);
-								strcpy(clientList[clientNum].hostname,token);
-								printf("clientList[%d].hostname = %s\n",clientNum,clientList[clientNum].hostname);
-								token = strtok(NULL," ");
-								//printf("%s\n",token);
-								strcpy(clientList[clientNum].ip,token);
-								printf("ip = %s\n",clientList[clientNum].ip);
-								//printf("%s\n",token);
-								token = strtok(NULL," ");
-								//clientNum = clientNum + 1;
-							//}
+								//printf("token = %s\n",token);
+								//printf("for loop1 = %d\n",loop1);
+								switch(loop2)
+								{
+									case 0:
+										strcpy(clientList[loop1].hostname,token);
+										//printf("[%d]hostname = %s\n",loop1,clientList[loop1].hostname);
+										loop2++;
+									case 1:
+										token = strtok(NULL," ");
+										strcpy(clientList[loop1].ip,token);
+										//printf("[%d]ip = %s\n",loop1,clientList[loop1].ip);
+										loop2++;
+									case 2:
+										token = strtok(NULL," ");
+										//printf("in case2 token is %s\n",token);
+										temp_port = atoi(token);
+										//printf("temp_port is %d\n",temp_port);
+										clientList[loop1].port = temp_port;
+										loop2 = 0;
+
+								}
+							}
 						}
 
 						//printf("Server responded: %s", buffer);
@@ -483,7 +508,7 @@ void distinguish_command(char cmd[20])
 	char ip[128];
 	char your_ubit_name[20];
 	int l;
-	strcpy(your_ubit_name,"haoruido");
+	strcpy(your_ubit_name,"shiyangw");
 	l = strlen(cmd);
 	if(cmd[l-1] == '\n'){
 			cmd[l-1] = '\0';
@@ -515,7 +540,7 @@ void distinguish_command_client(char cmd[20], int client_socket)
 	char ip[128];
 	char your_ubit_name[20];
 	int l;
-	strcpy(your_ubit_name,"haoruido");
+	strcpy(your_ubit_name,"shiyangw");
 	l = strlen(cmd);
 	if(cmd[l-1] == '\n'){
 			cmd[l-1] = '\0';
@@ -537,7 +562,8 @@ void distinguish_command_client(char cmd[20], int client_socket)
 	}
 	else if(!strncmp(cmd,"LIST",4)){
 		cse4589_print_and_log("[%s:SUCCESS]\n", cmd);
-		displayinlist();
+		//printf("%-35s%-20s%-8d\n", clientList[1].hostname, clientList[1].ip, clientList[1].port);
+		displayinlist_client();
 		cse4589_print_and_log("[%s:END]\n", cmd);
 	}
 	else if(!strncmp(cmd,"EXIT",4)){
@@ -549,10 +575,6 @@ void distinguish_command_client(char cmd[20], int client_socket)
 
 }
 
-void displayinlist_client(){
-
-
-}
 
 void sortClient(){
 	struct Node clientnode;
@@ -641,14 +663,15 @@ int ValidAddressandPort(char *serverIPaddr, char* serverport_str){
 void create_listdata(char *listdata_array){
     int clientNum=0;
     int i=0;
-
+	int temp_port;
     strcpy(listdata_array,"listdata~\n");
     while(strlen(clientList[clientNum].ip)!=0){
     	 char port_str[5];
     	 char port_str2[5];
-    	 int port=clientList[clientNum].port;
-         sprintf(port_str, "%d", port);
-         strcpy(port_str2,port_str);
+    	 int temp_port=clientList[clientNum].port;
+         sprintf(port_str, "%d", temp_port);
+		 //printf("port_str is %s", port_str);
+         //strcpy(port_str2,port_str);
          int index=clientNum+1;
          char index_str[1];
          char index_str2[1];
@@ -660,10 +683,12 @@ void create_listdata(char *listdata_array){
          strcat(listdata_array," ");
          strcat(listdata_array,clientList[clientNum].ip);
          strcat(listdata_array," ");
-         strcat(listdata_array,port_str2);
+         strcat(listdata_array,port_str);
          strcat(listdata_array,"\n");
+		 //printf("listdata is %s\n",listdata_array);
          clientNum=clientNum+1;
     }
+	//printf("at last listdata is %s\n",listdata_array);
 }
 
 void displayinlist(){
@@ -672,6 +697,14 @@ void displayinlist(){
     while(strlen(clientList[i].ip)!=0){
     	index=i+1;
     	cse4589_print_and_log("%-5d%-35s%-20s%-8d\n", index, clientList[i].hostname, clientList[i].ip, clientList[i].port);
+    	i++;
+    }
+}
+
+void displayinlist_client(){
+    int i=1;
+    while(strlen(clientList[i].ip)!=0){
+    	cse4589_print_and_log("%-5d%-35s%-20s%-8d\n", i, clientList[i].hostname, clientList[i].ip, clientList[i].port);
     	i++;
     }
 }
