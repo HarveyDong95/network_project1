@@ -51,6 +51,7 @@ void create_listdata(char *listdata_array);
 void displayinlist();
 void distinguish_command_client(char cmd[20], int client_socket);
 void displayinlist_client();
+void package_send(char* msg, int sock_filed);
 //define
 #define BACKLOG 5
 #define STDIN 0
@@ -72,6 +73,7 @@ int port;
 int clientport;
 int clientNum;
 int type;              //mark server or client
+int socket_filed;
 struct Node{
 	//use getnameinfo to get hostname
 	char ip[128];
@@ -83,6 +85,7 @@ struct Node{
 };
 struct Node clientList[5];
 struct addrinfo *myaddress;
+int client_num=0;
 
 //client!!!!
 int client(char argv[20])
@@ -90,8 +93,9 @@ int client(char argv[20])
 
 	int client_socket, head_socket, selret, sock_index, fdaccept=0, caddr_len,log_status, clientNum,temp_port;
 	char *cmd;
+	char *message;
 	char *temp[128];
-	int loop1=1,loop2=0; //to loop the buffer
+	int loop1=0,loop2=0; //to loop the buffer
 	char *token;
 	struct sockaddr_in server_addr, client_addr;
 	fd_set master_list, watch_list;
@@ -206,7 +210,9 @@ int client(char argv[20])
 				        memset(buffer, '\0', BUFFER_SIZE);
 
 						if(recv(client_socket, buffer, BUFFER_SIZE, 0) >= 0){
+							//printf(" buffer is %s\n",buffer );
 							token = strtok(buffer,"\n");
+							//printf("token is %s\n",token );
 							while( token != NULL ){
 								temp[clientNum] = token;
 								//printf("temp[%d] = %s\n",clientNum,temp[clientNum]);
@@ -214,7 +220,7 @@ int client(char argv[20])
 								token = strtok(NULL, "\n");
 							}
 							//clientList[clientNum].port = port;
-							printf("clientNum is %d\n",clientNum);
+							//printf("clientNum is %d\n",clientNum);
 							for(loop1;loop1<clientNum;loop1++){
 								token = strtok(temp[loop1]," ");
 								token = strtok(NULL," ");
@@ -242,16 +248,85 @@ int client(char argv[20])
 								}
 							}
 						}
-
 						//printf("Server responded: %s", buffer);
 							fflush(stdout);
 						}
-						else
-						distinguish_command_client(cmd,client_socket);
-					}
-					return 0;
-}
+						else if(strstr(cmd,"BROADCAST")){
+							int count = 0;
+							char *msg;
+							char *arg = strtok(cmd," ");
+							arg = strtok(NULL," ");
+							msg = arg;
+							message = malloc(27 + strlen(msg));
+							strcpy(message,"BROADCAST~255.255.255.255~");
+							strcat(message,msg);
+							package_send(message,client_socket);
+							free(message);
+						}
+						else if(!strncmp(cmd,"REFRESH",7)){
+							message = malloc(10);
+							//strcpy(message,cmd);
+							message = cmd;
+							//printf("message is \n",message);
+							package_send(message,client_socket);
+							free(message);
+							int c_num=0;
+							loop1 = 0;
+							loop2 = 0;
+							char *buffer = (char*) malloc(sizeof(char)*BUFFER_SIZE);
+							memset(buffer, '\0', BUFFER_SIZE);
 
+								if(recv(client_socket, buffer, BUFFER_SIZE, 0) >= 0){
+									printf(" buffer is %s\n",buffer );
+									token = strtok(buffer,"\n");
+									printf("token is %s\n",token );
+									while( token != NULL ){
+										temp[c_num] = token;
+										printf("temp[%d] = %s\n",c_num,temp[c_num]);
+										c_num++;
+										token = strtok(NULL, "\n");
+									}
+									//clientList[c_num].port = port;
+									printf("c_num is %d\n",c_num);
+									for(loop1;loop1<c_num-1;loop1++){
+										token = strtok(temp[loop1]," ");
+										token = strtok(NULL," ");
+										//token = strtok(NULL," ");
+										printf("token = %s\n",token);
+										printf("for loop1 = %d\n",loop1);
+										switch(loop2)
+										{
+											case 0:
+												strcpy(clientList[loop1].hostname,token);
+												printf("[%d]hostname = %s\n",loop1,clientList[loop1].hostname);
+												loop2++;
+											case 1:
+												token = strtok(NULL," ");
+												strcpy(clientList[loop1].ip,token);
+												printf("[%d]ip = %s\n",loop1,clientList[loop1].ip);
+												loop2++;
+											case 2:
+												token = strtok(NULL," ");
+												printf("in case2 token is %s\n",token);
+												temp_port = atoi(token);
+												printf("temp_port is %d\n",temp_port);
+												clientList[loop1].port = temp_port;
+												loop2 = 0;
+											}
+										}
+									}
+									free(buffer);
+								}
+
+
+
+						else
+							distinguish_command_client(cmd,client_socket);
+					}
+
+				return 0;
+
+}
 int connect_to_host(char *server_ip, int server_port, int clientport)
 {
     int fdsocket, len;
@@ -283,7 +358,11 @@ int connect_to_host(char *server_ip, int server_port, int clientport)
 //server!!!!!
 int server(int argv)
 {
-	int  server_socket, head_socket, selret, sock_index, fdaccept=0, caddr_len;
+	int  server_socket, head_socket, selret, sock_index, fdaccept=0, caddr_len,c_number=0;
+	char *message;
+	char *temp_token;
+	char *msg;
+	char *temp_str;
 	struct sockaddr_in server_addr, client_addr;
 	fd_set master_list, watch_list;
 	//socket
@@ -342,16 +421,16 @@ int server(int argv)
 										char *cmd = (char*) malloc(sizeof(char)*CMD_SIZE);
 
 										memset(cmd, '\0', CMD_SIZE);
-					if(fgets(cmd, CMD_SIZE-1, stdin) == NULL) //Mind the newline character that will be written to cmd
-						exit(-1);
+											if(fgets(cmd, CMD_SIZE-1, stdin) == NULL) //Mind the newline character that will be written to cmd
+												exit(-1);
 
-					printf("\nI got: %s\n", cmd);
+											printf("\nI got: %s\n", cmd);
 
-					//Process PA1 commands here ...
-					//Use a function to distinguish command and run them
-					distinguish_command(cmd);
-					//printf("ip is %s\n",get_host_ip_addr());
-					free(cmd);
+											//Process PA1 commands here ...
+											//Use a function to distinguish command and run them
+											distinguish_command(cmd);
+											//printf("ip is %s\n",get_host_ip_addr());
+											free(cmd);
 									}
 									/* Check if new client is requesting connection */
 									else if(sock_index == server_socket){
@@ -361,11 +440,14 @@ int server(int argv)
 													perror("Accept failed.");
 
 					                        printf("\nRemote Host connected!\n");
-
+											clientList[c_number].sock = fdaccept;
+											c_number+=1;
+											client_num+=1;
 											/* Add to watched socket list */
 											FD_SET(fdaccept, &master_list);
-											if(fdaccept > head_socket) head_socket = fdaccept;
-									}
+											if(fdaccept > head_socket)
+												head_socket = fdaccept;
+										}
 									/* Read from existing clients */
 									else{
 											/* Initialize buffer to receieve response */
@@ -379,7 +461,7 @@ int server(int argv)
 													/* Remove from watched list */
 													FD_CLR(sock_index, &master_list);
 											}
-											else {
+											else{
 												//Process incoming data from existing clients here ...
                                                 int login_port = 0;
 												printf("\nClient sent me: %s\n", buffer);
@@ -395,7 +477,7 @@ int server(int argv)
                                                 	login_port_str=strtok(NULL,"\n");
                                                 	printf("Receiving the port number: %s\n", login_port_str);
                                                 	login_port=atoi(login_port_str);
-
+													memset(buffer, '\0', BUFFER_SIZE);
                                                 	addtoList(fdaccept,login_port);
                                                     sortClient();
 
@@ -408,9 +490,67 @@ int server(int argv)
                                                 	if(sendall(fdaccept,clientlist_data_str,&clientlist_data_len)==-1){
                                                         printf("Failed to send to Client!\n");
                                                 	}
+												}
+												else if(strncmp(buffer,"BROADCAST",6) == 0){
+													msg = malloc(256);
+													int i=0;
+													//printf("c_number is %d\n",c_number);
+													temp_token = strtok(buffer,"~");
+													//printf("temptoken is %s\n",temp_token);
+													//strcpy(temp_str,temp_token);
+													temp_str = temp_token;
+													//printf("tempstr is %s\n",temp_str);
+													strcat(msg,temp_str);
+													//printf("msg is %s\n",msg);
+													strcat(msg," ");
+													//printf("temp_token = %s\n",temp_token);
+													temp_token = strtok(NULL,"~");
+													//strcpy(temp_str,temp_token);
+													temp_str = temp_token;
+													strcat(msg,temp_str);
+													strcat(msg," ");
+													//printf("temp_token = %s\n",temp_token);
+													temp_token = strtok(NULL,"~");
+													//strcpy(temp_str,temp_token);
+													temp_str = temp_token;
+													strcat(msg,temp_str);
+													strcat(msg," ");
+													//printf("temp_token = %s\n",temp_token);
+													for(i;i<c_number; i++){
+														message = malloc(24+strlen(msg)*sizeof(char));
+														strcpy(message,msg);
+														printf("message is %s\n",message);
+														//if(send(clientList[i].sock,message,strlen(message),0)<=0)
+															//printf("Broadcast send failed\n");
+														package_send(message,clientList[i].sock);
+														//printf("clientList[%d].sock = %d\n",i,clientList[i].sock);
+													}
+													free(message);
+													free(msg);
+													printf("I know to BROADCAST\n");
+													printf("I recv %s\n",buffer);
+
+												}
+												else if(strncmp(buffer,"REFRESH",7) == 0){
+													char clientlist_data[512]={'\0'};
+                                                    create_listdata(clientlist_data);
+
+                                                	char *clientlist_data_str;
+													//strcpy(clientlist_data_str,"REFRESH~");
+													strcpy(clientlist_data_str,clientlist_data);
+													//clientlist_data_str=clientlist_data;
+													printf("clientlist_data_str is %s\n",clientlist_data_str);
+
+                                                	//int clientlist_data_len=strlen(clientlist_data_str);
+                                                	/*if(sendall(sock_index,clientlist_data_str,&clientlist_data_len)==-1){
+                                                        printf("Failed to send to refresh Client!\n");
+													}
+													*/
+													package_send(clientlist_data_str,sock_index);
+												}
                                                 	//printnewclient();
 
-                                                }
+
 
 						                        printf("ECHOing it back to the remote host ... ");
 						                        if(send(sock_index, buffer, strlen(buffer), 0) == strlen(buffer))
@@ -567,12 +707,17 @@ void distinguish_command_client(char cmd[20], int client_socket)
 		cse4589_print_and_log("[%s:END]\n", cmd);
 	}
 	else if(!strncmp(cmd,"EXIT",4)){
-		cse4589_print_and_log((char *)"[%s:SUCCESS]\n", (char*)"EXIT");
+		cse4589_print_and_log((char *)"[%s:SUCCESS]\n", cmd);
 		close(client_socket);
-		cse4589_print_and_log((char *)"[%s:END]\n", (char*)"EXIT");
+		cse4589_print_and_log((char *)"[%s:END]\n", cmd);
 		exit(0);
 	}
-
+	else if(!strncmp(cmd,"LOGOUT",4)){
+		cse4589_print_and_log((char *)"[%s:SUCCESS]\n", cmd);
+		close(client_socket);
+		cse4589_print_and_log((char *)"[%s:END]\n", cmd);
+		exit(0);
+	}
 }
 
 
@@ -616,6 +761,7 @@ void addtoList(int fdaccept, int login_port){
 	printf("The number of clients is:%d\n",clientNum);
 
 }
+
 int sendall(int socket_fd, char *buf, int *len){
    	int s,whole;                //already sent bytes
 	int leftbytes = *len;      //not sent bytes
@@ -631,6 +777,18 @@ int sendall(int socket_fd, char *buf, int *len){
     else return -1;
 
 }
+
+void package_send(char* msg, int sock_filed){
+	int msglen;
+	char* message = (char*)malloc(10+strlen(msg));
+	//sprintf(message,"%5lu",strlen(msg));
+	strcat(message,msg);
+	msglen = strlen(message);
+	printf("we are sending %s\n",message );
+	sendall(sock_filed, message, &msglen);
+	free(message);
+}
+
 int ValidAddressandPort(char *serverIPaddr, char* serverport_str){
 	struct sockaddr_in addr;
 	int IP=0;
@@ -664,8 +822,12 @@ void create_listdata(char *listdata_array){
     int clientNum=0;
     int i=0;
 	int temp_port;
-    strcpy(listdata_array,"listdata~\n");
-    while(strlen(clientList[clientNum].ip)!=0){
+	char temp_array[256];
+    //strcpy(listdata_array,"listdata~\n");
+    //while(strlen(clientList[clientNum].ip)!=0){
+	while(clientNum<client_num){
+			printf("client_num is %d\n",client_num );
+			printf("clientNum is %d\n",clientNum );
     	 char port_str[5];
     	 char port_str2[5];
     	 int temp_port=clientList[clientNum].port;
@@ -677,7 +839,8 @@ void create_listdata(char *listdata_array){
          char index_str2[1];
          sprintf(index_str, "%d", index);
          strcpy(index_str2,index_str);
-         strcat(listdata_array,index_str2);
+
+		 /*strcat(listdata_array,index_str2);
          strcat(listdata_array," ");
          strcat(listdata_array,clientList[clientNum].hostname);
          strcat(listdata_array," ");
@@ -685,8 +848,10 @@ void create_listdata(char *listdata_array){
          strcat(listdata_array," ");
          strcat(listdata_array,port_str);
          strcat(listdata_array,"\n");
-		 //printf("listdata is %s\n",listdata_array);
-         clientNum=clientNum+1;
+		 //printf("listdata is %s\n",listdata_array);*/
+		sprintf(temp_array,"%d%s%s%s%s%s%d%s",index," ",clientList[clientNum].hostname," ",clientList[clientNum].ip," ",temp_port,"\n");
+		strcat(listdata_array,temp_array);
+        clientNum=clientNum+1;
     }
 	//printf("at last listdata is %s\n",listdata_array);
 }
@@ -702,9 +867,9 @@ void displayinlist(){
 }
 
 void displayinlist_client(){
-    int i=1;
+    int i=0;
     while(strlen(clientList[i].ip)!=0){
-    	cse4589_print_and_log("%-5d%-35s%-20s%-8d\n", i, clientList[i].hostname, clientList[i].ip, clientList[i].port);
+    	cse4589_print_and_log("%-5d%-35s%-20s%-8d\n", i+1, clientList[i].hostname, clientList[i].ip, clientList[i].port);
     	i++;
     }
 }
