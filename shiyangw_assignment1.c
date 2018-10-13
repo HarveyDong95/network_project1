@@ -49,10 +49,9 @@ int ValidAddressandPort(char *serverIPaddr, char* serverport_str);
 int sendall(int socket_fd, char *buf, int *len);
 void create_listdata(char *listdata_array);
 void displayinlist();
-void distinguish_command_client(char cmd[20], int client_socket, int log_status);
+void distinguish_command_client(char cmd[20], int client_socket);
 void displayinlist_client();
 void package_send(char* msg, int sock_filed);
-int sendip_in_list(char *sendip);
 //define
 #define BACKLOG 5
 #define STDIN 0
@@ -86,6 +85,7 @@ struct Node{
 };
 struct Node clientList[5];
 struct addrinfo *myaddress;
+int client_num=0;
 
 //client!!!!
 int client(char argv[20])
@@ -118,21 +118,17 @@ int client(char argv[20])
     FD_SET(STDIN, &master_list);
 
     head_socket = STDIN;
-    printf("client_socket:%d\n",client_socket);
-    printf("head_socket%d\n", head_socket);
+
 	while(TRUE){
 		                memcpy(&watch_list, &master_list, sizeof(master_list));
 
 						printf("\n[PA1-Client@CSE489/589]$ ");
 						fflush(stdout);
-                        int index_max=client_socket;
+
 						/* select() system call. This will BLOCK */
 			            selret = select(head_socket + 1, &watch_list, NULL, NULL, NULL);
 			            if(selret < 0)
 					        perror("select failed.");
-            if(select > 0){
-                for(int sock_index=0; sock_index<=index_max; sock_index+=1){
-                if (sock_index == STDIN){
 
 						char *msg = (char*) malloc(sizeof(char)*MSG_SIZE);
 				    	memset(msg, '\0', MSG_SIZE);
@@ -164,7 +160,7 @@ int client(char argv[20])
 						if(client_socket != 0)
 							cse4589_print_and_log("[%s:SUCCESS]\n", "LOGIN");
 						else
-							cse4589_print_and_log("[%s:ERROR\n]","LOGIN");
+							cse4589_print_and_log("[%s:SUCCESS\n]","LOGIN");
 		                char serverport_str[5];
 		                char clientport_str[5];
 		                sprintf(serverport_str,"%d",serverport);
@@ -202,68 +198,21 @@ int client(char argv[20])
 		                else{
 							cse4589_print_and_log("[%s:ERROR]\n", "LOGIN");
 						}
-						
-					}
-					else if(strstr(cmd,"BROADCAST")&&log_status==IN){
-							int count = 0;
-							char *msg;
-							char *arg = strtok(cmd," ");
-							arg = strtok(NULL," ");
-							msg = arg;
-							message = malloc(27 + strlen(msg));
-							strcpy(message,"BROADCAST~255.255.255.255~");
-							strcat(message,msg);
-							package_send(message,client_socket);
-							free(message);
-						}
-						else if(strstr(cmd,"SEND")&&log_status==IN){
-							char header[10];
-							char sendip[64];
-							char sendipandmessage[308]={'\0'};
-							char message_send[256];
-							int iandm_len;
-							
-							char *temp = strtok(cmd, " ");							
-	                        if(temp != NULL)
-	                        {
-		                        strcpy(header,temp);
-		                        temp = strtok(NULL, "");
-		                    }
-		                    strcpy(sendipandmessage,temp);
-                            iandm_len=strlen(sendipandmessage);
-                            strcpy(sendip,sendipandmessage);
-                            char *temp2=strtok(sendip," ");
-                            printf("sendip:%s\n", sendip);
-	                        printf("send header:%s\n", header);
-	                        printf("sendipandmessage%s\n", sendipandmessage);
-	                        if(sendip_in_list(sendip)>0){
-	                        	printf("The destination client is in the list.\n");
-	                        	if (sendall(client_socket, sendipandmessage, &iandm_len) == -1) {
-									//perror("sendall");
-									printf("Failed to send to server!");
-								}
-								cse4589_print_and_log("[%s:SUCCESS]\n", "SEND");
-	                        }
-	                        else{
-	                        	cse4589_print_and_log("[%s:ERROR]\n", "SEND");
-	                        }
-	                        cse4589_print_and_log("[%s:END]\n", "SEND");
-						}
-						else
-							distinguish_command_client(cmd,client_socket,log_status);
+
+
+
+
+
 						fflush(stdout);
-					}
-					else if(sock_index == client_socket){         
-					    printf("testtesttest\n");               
+
 						/* Initialize buffer to receieve response */
 				        char *buffer = (char*) malloc(sizeof(char)*BUFFER_SIZE);
 				        memset(buffer, '\0', BUFFER_SIZE);
 
 						if(recv(client_socket, buffer, BUFFER_SIZE, 0) >= 0){
-						    printf(" buffer is %s\n",buffer );
-						    if
+							//printf(" buffer is %s\n",buffer );
 							token = strtok(buffer,"\n");
-							printf("token is %s\n",token );
+							//printf("token is %s\n",token );
 							while( token != NULL ){
 								temp[clientNum] = token;
 								//printf("temp[%d] = %s\n",clientNum,temp[clientNum]);
@@ -298,29 +247,85 @@ int client(char argv[20])
 
 								}
 							}
-						
 						}
 						//printf("Server responded: %s", buffer);
 							fflush(stdout);
-						               //remove the end of LOGIN 
-						
-						/*else{
+						}
+						else if(strstr(cmd,"BROADCAST")){
+							int count = 0;
+							char *msg;
+							char *arg = strtok(cmd," ");
+							arg = strtok(NULL," ");
+							msg = arg;
+							message = malloc(27 + strlen(msg));
+							strcpy(message,"BROADCAST~255.255.255.255~");
+							strcat(message,msg);
+							package_send(message,client_socket);
+							free(message);
+						}
+						else if(!strncmp(cmd,"REFRESH",7)){
+							message = malloc(10);
+							//strcpy(message,cmd);
+							message = cmd;
+							//printf("message is \n",message);
+							package_send(message,client_socket);
+							free(message);
+							int c_num=0;
+							loop1 = 0;
+							loop2 = 0;
 							char *buffer = (char*) malloc(sizeof(char)*BUFFER_SIZE);
 							memset(buffer, '\0', BUFFER_SIZE);
-							//printf("kazhele1\n");
-							/*if(recv(client_socket, buffer, BUFFER_SIZE, 0) >= 0){
-								//printf("kazhele2\n");
-								if(!strncmp(buffer,"BOARDCAST",9))
-								//printf("kazhele3\n");
-									printf("I recv %s\n",buffer);
+
+								if(recv(client_socket, buffer, BUFFER_SIZE, 0) >= 0){
+									printf(" buffer is %s\n",buffer );
+									token = strtok(buffer,"\n");
+									//token = strtok(NULL, "~");
+									//token = strtok(NULL,"\n");
+									//token = strtok(NULL, "\n");
+									printf("token is %s\n",token );
+									while( token != NULL ){
+										temp[c_num] = token;
+										printf("temp[%d] = %s\n",c_num,temp[c_num]);
+										c_num++;
+										token = strtok(NULL, "\n");
+									}
+									//clientList[c_num].port = port;
+									printf("c_num is %d\n",c_num);
+									for(loop1;loop1<c_num-1;loop1++){
+										token = strtok(temp[loop1]," ");
+										token = strtok(NULL," ");
+										//token = strtok(NULL," ");
+										printf("token = %s\n",token);
+										printf("for loop1 = %d\n",loop1);
+										switch(loop2)
+										{
+											case 0:
+												strcpy(clientList[loop1].hostname,token);
+												printf("[%d]hostname = %s\n",loop1,clientList[loop1].hostname);
+												loop2++;
+											case 1:
+												token = strtok(NULL," ");
+												strcpy(clientList[loop1].ip,token);
+												printf("[%d]ip = %s\n",loop1,clientList[loop1].ip);
+												loop2++;
+											case 2:
+												token = strtok(NULL," ");
+												printf("in case2 token is %s\n",token);
+												temp_port = atoi(token);
+												printf("temp_port is %d\n",temp_port);
+												clientList[loop1].port = temp_port;
+												loop2 = 0;
+											}
+										}
+									}
+									free(buffer);
 								}
 
-						}*/
-						
-					}      
-				}  //for for(int socket_index=0; socket_index<=max_fd; socket_index+=1)
-			}   //for if(select_result > 0)	
-		}      //for while
+
+
+						else
+							distinguish_command_client(cmd,client_socket);
+					}
 
 				return 0;
 
@@ -440,6 +445,7 @@ int server(int argv)
 					                        printf("\nRemote Host connected!\n");
 											clientList[c_number].sock = fdaccept;
 											c_number+=1;
+											client_num+=1;
 											/* Add to watched socket list */
 											FD_SET(fdaccept, &master_list);
 											if(fdaccept > head_socket)
@@ -528,58 +534,22 @@ int server(int argv)
 													printf("I recv %s\n",buffer);
 
 												}
-												else{
-													char receiver_ip[64];
-													char sender_ip[64];
-													int k=0;
-													int ip_len,len;
-													int receiver_sock=-1;
-													char message[256];
-													while(strlen(clientList[k].ip)!=0){
-														if(clientList[k].sock==sock_index){
-															strcpy(sender_ip,clientList[k].ip);
-														}
-														k++;
-													}													
-													strcpy(receiver_ip, buffer);
-	                                                char *temp = strtok(receiver_ip, " ");
-	                                                //printf("receiver_ip:%s\n", receiver_ip);       //ip
-	                                                //printf("temp:%s\n", temp);                    //ip
-	                                                //printf("buffer:%s\n", buffer);                   //ip and message
-	                                                ip_len=strlen(receiver_ip);
-	                                                len=ip_len+1;
-	                                                strcpy(message,buffer+len);
-	                                                //printf("message:%s\n", message);                //right
-                                                    k=0;
-                                                    while(strlen(clientList[k].ip)!=0){
-                                                    	if(strcmp(receiver_ip,clientList[k].ip)==0){
-                                                    		receiver_sock=clientList[k].sock;
-                                                    	}
-                                                    	k++;
-                                                    }
-                                                    char sendtoreceiver[256];
-                                                    char *sendmessage = (char*) malloc(sizeof(char)*BUFFER_SIZE);
-                                                    memset(sendmessage, '\0', BUFFER_SIZE);                                                    
-                                                    sprintf(sendtoreceiver,"%s%s%s",sender_ip," ",message);
-                                                    printf("sendtoreceiver:%s\n",sendtoreceiver);
-                                                    sendmessage=sendtoreceiver;
-                                                    int message_len=strlen(sendmessage);
-                                                    printf("sendmessage%s\n", sendmessage);
-                                                    // if add receive/send count, add here.
-                                                    if(receiver_sock!=-1){
-                                                    	if (sendall(receiver_sock, sendmessage, &message_len) == -1) 
-											                printf("Failed to send to receiver!\n");
-											            else{
-											            	cse4589_print_and_log("[%s:SUCCESS]\n", "RELAYED");
-	                                                        cse4589_print_and_log("msg from:%s, to:%s\n[msg]:%s\n", sender_ip, receiver_ip, sendmessage);
-	                                                        cse4589_print_and_log("[%s:END]\n", "RELAYED");
-											            }
-                                                    }
-                                                    else {
-                                                    	printf("Can not find the socket!");
-                                                    }
-                                                                                                                     
-                            
+												else if(strncmp(buffer,"REFRESH",7) == 0){
+													char clientlist_data[512]={'\0'};
+                                                    create_listdata(clientlist_data);
+
+                                                	char *clientlist_data_str;
+													//strcpy(clientlist_data_str,"REFRESH~");
+													strcpy(clientlist_data_str,clientlist_data);
+													//clientlist_data_str=clientlist_data;
+													printf("clientlist_data_str is %s\n",clientlist_data_str);
+
+                                                	//int clientlist_data_len=strlen(clientlist_data_str);
+                                                	/*if(sendall(sock_index,clientlist_data_str,&clientlist_data_len)==-1){
+                                                        printf("Failed to send to refresh Client!\n");
+													}
+													*/
+													package_send(clientlist_data_str,sock_index);
 												}
                                                 	//printnewclient();
 
@@ -708,7 +678,8 @@ void distinguish_command(char cmd[20])
 
 }
 
-void distinguish_command_client(char cmd[20], int client_socket, int log_status){
+void distinguish_command_client(char cmd[20], int client_socket)
+{
 	char ip[128];
 	char your_ubit_name[20];
 	int l;
@@ -744,13 +715,12 @@ void distinguish_command_client(char cmd[20], int client_socket, int log_status)
 		cse4589_print_and_log((char *)"[%s:END]\n", cmd);
 		exit(0);
 	}
-	else if(!strncmp(cmd,"LOGOUT",6)){
+	else if(!strncmp(cmd,"LOGOUT",4)){
 		cse4589_print_and_log((char *)"[%s:SUCCESS]\n", cmd);
 		close(client_socket);
 		cse4589_print_and_log((char *)"[%s:END]\n", cmd);
 		exit(0);
 	}
-
 }
 
 
@@ -817,6 +787,7 @@ void package_send(char* msg, int sock_filed){
 	//sprintf(message,"%5lu",strlen(msg));
 	strcat(message,msg);
 	msglen = strlen(message);
+	printf("we are sending %s\n",message );
 	sendall(sock_filed, message, &msglen);
 	free(message);
 }
@@ -856,7 +827,10 @@ void create_listdata(char *listdata_array){
 	int temp_port;
 	char temp_array[256];
     //strcpy(listdata_array,"listdata~\n");
-    while(strlen(clientList[clientNum].ip)!=0){
+    //while(strlen(clientList[clientNum].ip)!=0){
+	while(clientNum<client_num){
+			printf("client_num is %d\n",client_num );
+			printf("clientNum is %d\n",clientNum );
     	 char port_str[5];
     	 char port_str2[5];
     	 int temp_port=clientList[clientNum].port;
@@ -878,7 +852,7 @@ void create_listdata(char *listdata_array){
          strcat(listdata_array,port_str);
          strcat(listdata_array,"\n");
 		 //printf("listdata is %s\n",listdata_array);*/
-		sprintf(temp_array,"%d%s%s%s%s%s%d%s",index," ",clientList[clientNum].hostname," ",clientList[clientNum].ip," ",temp_port,"\n");
+		sprintf(temp_array,"%s%d%s%s%s%s%s%d%s","listdata~",index," ",clientList[clientNum].hostname," ",clientList[clientNum].ip," ",temp_port,"\n");
 		strcat(listdata_array,temp_array);
         clientNum=clientNum+1;
     }
@@ -901,14 +875,4 @@ void displayinlist_client(){
     	cse4589_print_and_log("%-5d%-35s%-20s%-8d\n", i+1, clientList[i].hostname, clientList[i].ip, clientList[i].port);
     	i++;
     }
-}
-int sendip_in_list(char *sendip){
-    int i=0;
-    int in=0;
-    while(strlen(clientList[i].ip)!=0){
-        if(strcmp(sendip, clientList[i].ip)==0)
-        	in=1;
-        i++;
-    } 
-    return in;
 }
