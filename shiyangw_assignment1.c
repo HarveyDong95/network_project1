@@ -118,19 +118,21 @@ int client(char argv[20])
     FD_SET(STDIN, &master_list);
 
     head_socket = STDIN;
-
+    printf("client_socket:%d\n",client_socket);
+    printf("head_socket%d\n", head_socket);
 	while(TRUE){
 		                memcpy(&watch_list, &master_list, sizeof(master_list));
 
 						printf("\n[PA1-Client@CSE489/589]$ ");
 						fflush(stdout);
-                        int index_max=head_socket;
+                        int index_max=client_socket;
 						/* select() system call. This will BLOCK */
 			            selret = select(head_socket + 1, &watch_list, NULL, NULL, NULL);
 			            if(selret < 0)
 					        perror("select failed.");
-                        if(select_result > 0){
-                        for(int sock_index=0; sock_index<=index_max; sock_index+=1){
+            if(select > 0){
+                for(int sock_index=0; sock_index<=index_max; sock_index+=1){
+                if (sock_index == STDIN){
 
 						char *msg = (char*) malloc(sizeof(char)*MSG_SIZE);
 				    	memset(msg, '\0', MSG_SIZE);
@@ -200,23 +202,68 @@ int client(char argv[20])
 		                else{
 							cse4589_print_and_log("[%s:ERROR]\n", "LOGIN");
 						}
-
-
-
-
-
+						
+					}
+					else if(strstr(cmd,"BROADCAST")&&log_status==IN){
+							int count = 0;
+							char *msg;
+							char *arg = strtok(cmd," ");
+							arg = strtok(NULL," ");
+							msg = arg;
+							message = malloc(27 + strlen(msg));
+							strcpy(message,"BROADCAST~255.255.255.255~");
+							strcat(message,msg);
+							package_send(message,client_socket);
+							free(message);
+						}
+						else if(strstr(cmd,"SEND")&&log_status==IN){
+							char header[10];
+							char sendip[64];
+							char sendipandmessage[308]={'\0'};
+							char message_send[256];
+							int iandm_len;
+							
+							char *temp = strtok(cmd, " ");							
+	                        if(temp != NULL)
+	                        {
+		                        strcpy(header,temp);
+		                        temp = strtok(NULL, "");
+		                    }
+		                    strcpy(sendipandmessage,temp);
+                            iandm_len=strlen(sendipandmessage);
+                            strcpy(sendip,sendipandmessage);
+                            char *temp2=strtok(sendip," ");
+                            printf("sendip:%s\n", sendip);
+	                        printf("send header:%s\n", header);
+	                        printf("sendipandmessage%s\n", sendipandmessage);
+	                        if(sendip_in_list(sendip)>0){
+	                        	printf("The destination client is in the list.\n");
+	                        	if (sendall(client_socket, sendipandmessage, &iandm_len) == -1) {
+									//perror("sendall");
+									printf("Failed to send to server!");
+								}
+								cse4589_print_and_log("[%s:SUCCESS]\n", "SEND");
+	                        }
+	                        else{
+	                        	cse4589_print_and_log("[%s:ERROR]\n", "SEND");
+	                        }
+	                        cse4589_print_and_log("[%s:END]\n", "SEND");
+						}
+						else
+							distinguish_command_client(cmd,client_socket,log_status);
 						fflush(stdout);
-
-                        
+					}
+					else if(sock_index == client_socket){         
+					    printf("testtesttest\n");               
 						/* Initialize buffer to receieve response */
 				        char *buffer = (char*) malloc(sizeof(char)*BUFFER_SIZE);
 				        memset(buffer, '\0', BUFFER_SIZE);
 
 						if(recv(client_socket, buffer, BUFFER_SIZE, 0) >= 0){
-						
-							//printf(" buffer is %s\n",buffer );
+						    printf(" buffer is %s\n",buffer );
+						    if
 							token = strtok(buffer,"\n");
-							//printf("token is %s\n",token );
+							printf("token is %s\n",token );
 							while( token != NULL ){
 								temp[clientNum] = token;
 								//printf("temp[%d] = %s\n",clientNum,temp[clientNum]);
@@ -255,53 +302,8 @@ int client(char argv[20])
 						}
 						//printf("Server responded: %s", buffer);
 							fflush(stdout);
-						}
-						else if(strstr(cmd,"BROADCAST")&&log_status==IN){
-							int count = 0;
-							char *msg;
-							char *arg = strtok(cmd," ");
-							arg = strtok(NULL," ");
-							msg = arg;
-							message = malloc(27 + strlen(msg));
-							strcpy(message,"BROADCAST~255.255.255.255~");
-							strcat(message,msg);
-							package_send(message,client_socket);
-							free(message);
-						}
-						else if(strstr(cmd,"SEND")&&log_status==IN){
-							char header[10];
-							char sendip[64];
-							char sendipandmessage[308]={'\0'};
-							char message_send[256];
-							int iandm_len;
-							
-							char *temp = strtok(cmd, " ");							
-	                        if(temp != NULL)
-	                        {
-		                        strcpy(header,temp);
-		                        temp = strtok(NULL, "");
-		                    }
-		                    strcpy(sendipandmessage,temp);
-                            iandm_len=strlen(sendipandmessage);
-                            strcpy(sendip,sendipandmessage);
-                            char *temp2=strtok(sendip," ");
-                            printf("temp2:%s\n",temp2);
-                            printf("sendip:%s\n", sendip);
-	                        printf("send header:%s\n", header);
-	                        printf("sendipandmessage%s\n", sendipandmessage);
-	                        if(sendip_in_list(sendip)>0){
-	                        	printf("The destination client is in the list.\n");
-	                        	if (sendall(client_socket, sendipandmessage, &iandm_len) == -1) {
-									//perror("sendall");
-									printf("Failed to send to server!");
-								}
-								cse4589_print_and_log("[%s:SUCCESS]\n", "SEND");
-	                        }
-	                        else{
-	                        	cse4589_print_and_log("[%s:ERROR]\n", "SEND");
-	                        }
-	                        cse4589_print_and_log("[%s:END]\n", "SEND");
-						}
+						               //remove the end of LOGIN 
+						
 						/*else{
 							char *buffer = (char*) malloc(sizeof(char)*BUFFER_SIZE);
 							memset(buffer, '\0', BUFFER_SIZE);
@@ -314,12 +316,11 @@ int client(char argv[20])
 								}
 
 						}*/
-						else
-							distinguish_command_client(cmd,client_socket,log_status);
-					      
-				    }  //for for(int socket_index=0; socket_index<=max_fd; socket_index+=1)
-				}   //for if(select_result > 0)	
-				}      //for while
+						
+					}      
+				}  //for for(int socket_index=0; socket_index<=max_fd; socket_index+=1)
+			}   //for if(select_result > 0)	
+		}      //for while
 
 				return 0;
 
